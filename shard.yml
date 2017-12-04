@@ -1,0 +1,9 @@
+name: zeromq
+version: 0.0.0
+dependencies:
+  zeromq:
+    github: crystal-community/zeromq-crystal
+  exit_on_error:
+    github: da99/exit_on_error
+  shell_out:
+    github: da99/shell_out

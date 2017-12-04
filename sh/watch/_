@@ -1,0 +1,91 @@
+#!/usr/bin/env zsh
+#
+# === {{CMD}}
+#
+set -u -e -o pipefail
+
+local +x ORIGINAL_ARGS="$@"
+
+if [[ -z "$@" ]]; then
+  local +x ACTION="watch"
+else
+  local +x ACTION="$1"; shift
+fi
+
+case "$ACTION" in
+  watch)
+    local +x CMD="$THIS_NAME watch run"
+    ${=CMD} || :
+    process watch "-r src -r bin -r sh -r apps" "$CMD"
+    ;;
+
+  run-all)
+    cd "$THIS_DIR"
+    local +x count=0
+    for name in $(echo server-1 client-1 client-1 client-1) ; do
+      local +x out="tmp/out/$name"
+      sh_color ORANGE "=== {{RUNNING}}: $out"
+      $out $count &
+      count=$((count + 1))
+    done
+    ;;
+
+  quit)
+    cd "$THIS_DIR"
+    for file in $(find ./apps -maxdepth 1 -mindepth 1 -type f -iname '*.cr') ; do
+      local +x name="$(basename "$file" .cr)"
+      local +x out="tmp/out/$name"
+      sh_color ORANGE "=== {{KILLING}}: $out"
+      pkill -f "$out" || :
+    done
+    ;;
+
+  run)
+    cd "$THIS_DIR"
+    local +x CHANGED_FILE="${CHANGED_FILE:-all}"
+
+    case "$CHANGED_FILE" in
+      *.cr)
+        $THIS_NAME watch quit
+        $THIS_NAME watch run-file "$CHANGED_FILE"
+        $THIS_NAME watch run-all
+        ;;
+
+      *"watch/_")
+        sh_color ORANGE "=== {{Watch file}} changed. Quit and restart."
+        ;;
+
+      all)
+        :
+        # for file in $(find ./apps -maxdepth 1 -mindepth 1 -type f -iname '*.cr') ; do
+        #   $THIS_NAME watch run-file "$file" &
+        # done
+        ;;
+    esac
+
+    sh_color GREEN "=== {{DONE}}: watch run ==="
+    ;;
+
+  run-file)
+    cd "$THIS_DIR"
+    mkdir -p tmp/out
+    local +x file="$1"; shift
+    local +x name="$(basename "$file" .cr)"
+    local +x out="tmp/out/$name"
+
+
+    sh_color ORANGE "=== {{$file}}: compiling"
+    my_crystal __ build "$file" -o $out
+    sh_color GREEN "=== {{$file}}: compiling done"
+    # sh_color ORANGE "=== {{$file}}: running: $out"
+    # $out
+    # sh_color GREEN "=== {{$file}}: running done"
+    ;;
+
+  *)
+    sh_color RED "!!! {{Unknown arguments}}: $ORIGINAL_ARGS" >&2
+    exit 1
+    ;;
+
+esac
+
